@@ -9,7 +9,7 @@ import type { BotStatus } from './botStatus';
 import type { BotType } from './botType';
 
 export interface Bot {
-  id: number;
+  id: string;
   name: string;
   type: BotType;
   hasToken?: boolean;

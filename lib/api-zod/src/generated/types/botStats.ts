@@ -7,7 +7,7 @@
  */
 
 export interface BotStats {
-  botId: number;
+  botId: string;
   uptimeSeconds: number;
   commandsRun: number;
   errorsToday: number;

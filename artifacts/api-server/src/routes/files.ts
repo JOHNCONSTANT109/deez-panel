@@ -3,8 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import https from "https";
-import { db, botsTable, botLogsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { Bot, BotLog, isValidObjectId } from "@workspace/db";
 import {
   ListBotFilesParams,
   ListBotFilesResponse,
@@ -17,13 +16,12 @@ import { getBotDir } from "../lib/process-manager";
 
 const router: IRouter = Router();
 
-function parseId(raw: string | string[]): number {
+function parseId(raw: string | string[]): string {
   const str = Array.isArray(raw) ? raw[0] : raw;
-  const n = Number(str);
-  return Number.isInteger(n) && n > 0 ? n : NaN;
+  return isValidObjectId(str) ? str : "";
 }
 
-function ensureBotDir(botId: number): string {
+function ensureBotDir(botId: string): string {
   const dir = getBotDir(botId);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
@@ -36,12 +34,12 @@ function sanitizeFilename(name: string): string {
 /** List files in a bot's directory */
 router.get("/bots/:id/files", async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const params = ListBotFilesParams.safeParse({ id });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const [bot] = await db.select().from(botsTable).where(eq(botsTable.id, id));
+  const bot = await Bot.findById(id);
   if (!bot) { res.status(404).json({ error: "Bot not found" }); return; }
 
   const dir = getBotDir(id);
@@ -65,11 +63,11 @@ router.get("/bots/:id/files", async (req, res): Promise<void> => {
   res.json(ListBotFilesResponse.parse(entries));
 });
 
-/** Upload files (multipart — not in OpenAPI schema, uses raw fetch on frontend) */
+/** Upload files (multipart) */
 const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     const id = parseId(req.params.id);
-    if (isNaN(id)) { cb(new Error("Invalid id"), ""); return; }
+    if (!id) { cb(new Error("Invalid id"), ""); return; }
     const dir = ensureBotDir(id);
     cb(null, dir);
   },
@@ -80,7 +78,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per file
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per file
 });
 
 router.post(
@@ -88,9 +86,9 @@ router.post(
   upload.array("files", 20),
   async (req, res): Promise<void> => {
     const id = parseId(req.params.id);
-    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
 
-    const [bot] = await db.select().from(botsTable).where(eq(botsTable.id, id));
+    const bot = await Bot.findById(id);
     if (!bot) { res.status(404).json({ error: "Bot not found" }); return; }
 
     const files = req.files as Express.Multer.File[];
@@ -100,30 +98,30 @@ router.post(
     }
 
     for (const f of files) {
-      await db.insert(botLogsTable).values({
+      await BotLog.create({
         botId: id,
         level: "info",
         message: `File uploaded: ${f.originalname} (${(f.size / 1024).toFixed(1)} KB)`,
       });
     }
 
-    // Auto-set entry file if not set and an appropriate file was uploaded
+    // Auto-set entry file if none is configured
     if (!bot.entryFile) {
       const candidates = ["index.js", "main.js", "bot.js", "app.js", "index.py", "main.py", "bot.py", "index.ts"];
       const firstMatch = files.find((f) => candidates.includes(f.filename));
       if (firstMatch) {
-        await db.update(botsTable).set({ entryFile: firstMatch.filename, updatedAt: new Date() }).where(eq(botsTable.id, id));
+        await Bot.findByIdAndUpdate(id, { entryFile: firstMatch.filename, updatedAt: new Date() });
       }
     }
 
     res.json({ uploaded: files.map((f) => ({ name: f.filename, size: f.size })) });
-  }
+  },
 );
 
 /** Delete a file */
 router.delete("/bots/:id/files/:filename", async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const raw = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
   const filename = sanitizeFilename(decodeURIComponent(raw));
@@ -131,7 +129,7 @@ router.delete("/bots/:id/files/:filename", async (req, res): Promise<void> => {
   const params = DeleteBotFileParams.safeParse({ id, filename });
   if (!params.success) { res.status(400).json({ error: "Invalid params" }); return; }
 
-  const [bot] = await db.select().from(botsTable).where(eq(botsTable.id, id));
+  const bot = await Bot.findById(id);
   if (!bot) { res.status(404).json({ error: "Bot not found" }); return; }
 
   const dir = getBotDir(id);
@@ -140,12 +138,11 @@ router.delete("/bots/:id/files/:filename", async (req, res): Promise<void> => {
 
   fs.unlinkSync(filePath);
 
-  // Clear entryFile if this was it
   if (bot.entryFile === filename) {
-    await db.update(botsTable).set({ entryFile: null, updatedAt: new Date() }).where(eq(botsTable.id, id));
+    await Bot.findByIdAndUpdate(id, { entryFile: null, updatedAt: new Date() });
   }
 
-  await db.insert(botLogsTable).values({ botId: id, level: "warn", message: `File deleted: ${filename}` });
+  await BotLog.create({ botId: id, level: "warn", message: `File deleted: ${filename}` });
 
   res.sendStatus(204);
 });
@@ -153,7 +150,7 @@ router.delete("/bots/:id/files/:filename", async (req, res): Promise<void> => {
 /** Pull files from a GitHub repository */
 router.post("/bots/:id/github", async (req, res): Promise<void> => {
   const id = parseId(req.params.id);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const params = PullFromGithubParams.safeParse({ id });
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
@@ -161,12 +158,11 @@ router.post("/bots/:id/github", async (req, res): Promise<void> => {
   const parsed = PullFromGithubBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const [bot] = await db.select().from(botsTable).where(eq(botsTable.id, id));
+  const bot = await Bot.findById(id);
   if (!bot) { res.status(404).json({ error: "Bot not found" }); return; }
 
   const { repoUrl, accessToken } = parsed.data;
 
-  // Parse GitHub URL: https://github.com/owner/repo or owner/repo
   const match = repoUrl.match(/(?:https?:\/\/github\.com\/)?([^/\s]+)\/([^/\s]+?)(?:\.git)?$/);
   if (!match) {
     res.status(400).json({ error: "Invalid GitHub repo URL. Expected: https://github.com/owner/repo" });
@@ -176,65 +172,64 @@ router.post("/bots/:id/github", async (req, res): Promise<void> => {
   const [, owner, repo] = match;
   const dir = ensureBotDir(id);
 
-  await db.insert(botLogsTable).values({ botId: id, level: "info", message: `Pulling from GitHub: ${owner}/${repo}` });
+  await BotLog.create({ botId: id, level: "info", message: `Pulling from GitHub: ${owner}/${repo}` });
 
   try {
-    // Get the repo's default branch and file tree via GitHub API
-    const apiBase = `https://api.github.com`;
+    const apiBase = "https://api.github.com";
     const headers: Record<string, string> = {
       "User-Agent": "DEEZ-PANEL",
-      "Accept": "application/vnd.github+json",
+      Accept: "application/vnd.github+json",
     };
     if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
     const repoInfo = await githubGet(`${apiBase}/repos/${owner}/${repo}`, headers);
-    const defaultBranch = (repoInfo as any).default_branch ?? "main";
+    const defaultBranch = (repoInfo as { default_branch?: string }).default_branch ?? "main";
 
     const treeResp = await githubGet(
       `${apiBase}/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
-      headers
-    ) as any;
+      headers,
+    ) as { tree?: { type: string; path: string }[] };
 
     const files = (treeResp.tree ?? []).filter(
-      (item: any) => item.type === "blob" && !item.path.includes("node_modules") && !item.path.startsWith(".")
+      (item) => item.type === "blob" && !item.path.includes("node_modules") && !item.path.startsWith("."),
     );
 
     let downloaded = 0;
     for (const item of files) {
       const raw = await githubGetRaw(
         `https://raw.githubusercontent.com/${owner}/${repo}/${defaultBranch}/${item.path}`,
-        headers
+        headers,
       );
       const dest = path.join(dir, sanitizeFilename(path.basename(item.path)));
       fs.writeFileSync(dest, raw);
       downloaded++;
     }
 
-    // Save repo URL and auto-detect entry file
-    await db.update(botsTable)
-      .set({ repoUrl: `https://github.com/${owner}/${repo}`, updatedAt: new Date() })
-      .where(eq(botsTable.id, id));
+    await Bot.findByIdAndUpdate(id, {
+      repoUrl: `https://github.com/${owner}/${repo}`,
+      updatedAt: new Date(),
+    });
 
     if (!bot.entryFile) {
       const candidates = ["index.js", "main.js", "bot.js", "app.js", "index.py", "main.py", "bot.py", "index.ts"];
       for (const c of candidates) {
         if (fs.existsSync(path.join(dir, c))) {
-          await db.update(botsTable).set({ entryFile: c, updatedAt: new Date() }).where(eq(botsTable.id, id));
+          await Bot.findByIdAndUpdate(id, { entryFile: c, updatedAt: new Date() });
           break;
         }
       }
     }
 
-    await db.insert(botLogsTable).values({
+    await BotLog.create({
       botId: id,
       level: "info",
       message: `GitHub pull complete: ${downloaded} file(s) from ${owner}/${repo}`,
     });
 
     res.json(PullFromGithubResponse.parse({ success: true, message: `Pulled ${downloaded} file(s)`, filesCount: downloaded }));
-  } catch (err: any) {
-    const msg = err?.message ?? "GitHub pull failed";
-    await db.insert(botLogsTable).values({ botId: id, level: "error", message: `GitHub pull error: ${msg}` });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "GitHub pull failed";
+    await BotLog.create({ botId: id, level: "error", message: `GitHub pull error: ${msg}` });
     res.status(400).json({ error: msg });
   }
 });

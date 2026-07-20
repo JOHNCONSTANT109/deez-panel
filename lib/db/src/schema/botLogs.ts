@@ -1,16 +1,23 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
-import { botsTable } from "./bots";
+import mongoose, { type Document, type Model } from "mongoose";
 
-export const botLogsTable = pgTable("bot_logs", {
-  id: serial("id").primaryKey(),
-  botId: integer("bot_id").notNull().references(() => botsTable.id, { onDelete: "cascade" }),
-  level: text("level").notNull().default("info"), // info | warn | error | debug
-  message: text("message").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export interface IBotLog extends Document {
+  botId: mongoose.Types.ObjectId;
+  level: string;
+  message: string;
+  createdAt: Date;
+}
 
-export const insertBotLogSchema = createInsertSchema(botLogsTable).omit({ id: true, createdAt: true });
-export type InsertBotLog = z.infer<typeof insertBotLogSchema>;
-export type BotLog = typeof botLogsTable.$inferSelect;
+const botLogSchema = new mongoose.Schema<IBotLog>(
+  {
+    botId: { type: mongoose.Schema.Types.ObjectId, ref: "Bot", required: true },
+    level: { type: String, default: "info" },
+    message: { type: String, required: true },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } },
+);
+
+botLogSchema.index({ botId: 1, createdAt: 1 });
+
+export const BotLog: Model<IBotLog> =
+  (mongoose.models.BotLog as Model<IBotLog>) ??
+  mongoose.model<IBotLog>("BotLog", botLogSchema);

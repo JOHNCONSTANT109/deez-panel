@@ -1,19 +1,20 @@
 import { spawn, type ChildProcess } from "child_process";
 import path from "path";
 import fs from "fs";
-import { db, botLogsTable, botsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { Bot, BotLog } from "@workspace/db";
 import { logger } from "./logger";
 
-/** Map of botId → running ChildProcess */
-const runningProcesses = new Map<number, ChildProcess>();
+/** Map of botId (string) → running ChildProcess */
+const runningProcesses = new Map<string, ChildProcess>();
 
 const BOT_FILES_DIR = process.env.BOT_FILES_DIR
   ? path.resolve(process.env.BOT_FILES_DIR)
-  : path.resolve("/home/runner/workspace/bot-files");
+  : process.env.VERCEL
+    ? path.resolve("/tmp/bot-files")
+    : path.resolve("/home/runner/workspace/bot-files");
 
-export function getBotDir(botId: number): string {
-  return path.join(BOT_FILES_DIR, String(botId));
+export function getBotDir(botId: string): string {
+  return path.join(BOT_FILES_DIR, botId);
 }
 
 /** Auto-detect the entry file if none is set */
@@ -37,19 +38,19 @@ function getRuntimeArgs(filename: string): [string, string[]] {
   return ["node", [filename]];
 }
 
-async function writeLog(botId: number, level: string, message: string) {
+async function writeLog(botId: string, level: string, message: string) {
   try {
-    await db.insert(botLogsTable).values({ botId, level, message });
+    await BotLog.create({ botId, level, message });
   } catch {
     // best-effort
   }
 }
 
-export function isRunning(botId: number): boolean {
+export function isRunning(botId: string): boolean {
   return runningProcesses.has(botId);
 }
 
-export async function startProcess(botId: number, entryFile: string): Promise<{ ok: boolean; message: string }> {
+export async function startProcess(botId: string, entryFile: string): Promise<{ ok: boolean; message: string }> {
   if (runningProcesses.has(botId)) {
     return { ok: false, message: "Bot process is already running." };
   }
@@ -98,10 +99,10 @@ export async function startProcess(botId: number, entryFile: string): Promise<{ 
       : `Process exited with code ${code ?? "unknown"}`;
     await writeLog(botId, code === 0 ? "info" : "warn", msg);
     try {
-      await db
-        .update(botsTable)
-        .set({ status: code === 0 ? "offline" : "error", updatedAt: new Date() })
-        .where(eq(botsTable.id, botId));
+      await Bot.findByIdAndUpdate(botId, {
+        status: code === 0 ? "offline" : "error",
+        updatedAt: new Date(),
+      });
     } catch {}
   });
 
@@ -109,17 +110,14 @@ export async function startProcess(botId: number, entryFile: string): Promise<{ 
     runningProcesses.delete(botId);
     await writeLog(botId, "error", `Failed to start process: ${err.message}`);
     try {
-      await db
-        .update(botsTable)
-        .set({ status: "error", updatedAt: new Date() })
-        .where(eq(botsTable.id, botId));
+      await Bot.findByIdAndUpdate(botId, { status: "error", updatedAt: new Date() });
     } catch {}
   });
 
   return { ok: true, message: `Process started: ${cmd} ${args.join(" ")}` };
 }
 
-export function stopProcess(botId: number): { ok: boolean; message: string } {
+export function stopProcess(botId: string): { ok: boolean; message: string } {
   const proc = runningProcesses.get(botId);
   if (!proc) {
     return { ok: false, message: "No running process found for this bot." };

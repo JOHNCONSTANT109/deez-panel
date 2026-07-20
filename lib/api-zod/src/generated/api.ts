@@ -20,7 +20,7 @@ export const HealthCheckResponse = zod.object({
  * @summary List all bots
  */
 export const ListBotsResponseItem = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['discord', 'telegram', 'slack', 'custom']),
   "hasToken": zod.boolean().optional(),
@@ -42,9 +42,6 @@ export const ListBotsResponse = zod.array(ListBotsResponseItem)
 /**
  * @summary Create a new bot
  */
-
-
-
 export const CreateBotBody = zod.object({
   "name": zod.string().min(1),
   "type": zod.enum(['discord', 'telegram', 'slack', 'custom']),
@@ -55,7 +52,7 @@ export const CreateBotBody = zod.object({
 })
 
 export const CreateBotResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['discord', 'telegram', 'slack', 'custom']),
   "hasToken": zod.boolean().optional(),
@@ -89,11 +86,11 @@ export const GetBotsSummaryResponse = zod.object({
  * @summary Get a bot by ID
  */
 export const GetBotParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const GetBotResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['discord', 'telegram', 'slack', 'custom']),
   "hasToken": zod.boolean().optional(),
@@ -115,11 +112,8 @@ export const GetBotResponse = zod.object({
  * @summary Update a bot
  */
 export const UpdateBotParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
-
-
-
 
 export const UpdateBotBody = zod.object({
   "name": zod.string().min(1).optional(),
@@ -133,7 +127,7 @@ export const UpdateBotBody = zod.object({
 })
 
 export const UpdateBotResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['discord', 'telegram', 'slack', 'custom']),
   "hasToken": zod.boolean().optional(),
@@ -155,7 +149,7 @@ export const UpdateBotResponse = zod.object({
  * @summary Delete a bot
  */
 export const DeleteBotParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const DeleteBotResponse = zod.void()
@@ -165,11 +159,11 @@ export const DeleteBotResponse = zod.void()
  * @summary Start a bot process
  */
 export const StartBotParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const StartBotResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['discord', 'telegram', 'slack', 'custom']),
   "hasToken": zod.boolean().optional(),
@@ -191,11 +185,11 @@ export const StartBotResponse = zod.object({
  * @summary Stop a bot process
  */
 export const StopBotParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const StopBotResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['discord', 'telegram', 'slack', 'custom']),
   "hasToken": zod.boolean().optional(),
@@ -217,12 +211,12 @@ export const StopBotResponse = zod.object({
  * @summary Get logs for a bot
  */
 export const GetBotLogsParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const GetBotLogsResponseItem = zod.object({
-  "id": zod.number(),
-  "botId": zod.number(),
+  "id": zod.string(),
+  "botId": zod.string(),
   "level": zod.enum(['info', 'warn', 'error', 'debug']),
   "message": zod.string(),
   "createdAt": zod.string()
@@ -234,7 +228,7 @@ export const GetBotLogsResponse = zod.array(GetBotLogsResponseItem)
  * @summary Add a log entry for a bot
  */
 export const AddBotLogParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const AddBotLogBody = zod.object({
@@ -243,8 +237,8 @@ export const AddBotLogBody = zod.object({
 })
 
 export const AddBotLogResponse = zod.object({
-  "id": zod.number(),
-  "botId": zod.number(),
+  "id": zod.string(),
+  "botId": zod.string(),
   "level": zod.enum(['info', 'warn', 'error', 'debug']),
   "message": zod.string(),
   "createdAt": zod.string()
@@ -255,11 +249,11 @@ export const AddBotLogResponse = zod.object({
  * @summary Get runtime stats for a bot
  */
 export const GetBotStatsParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const GetBotStatsResponse = zod.object({
-  "botId": zod.number(),
+  "botId": zod.string(),
   "uptimeSeconds": zod.number(),
   "commandsRun": zod.number(),
   "errorsToday": zod.number(),
@@ -271,7 +265,7 @@ export const GetBotStatsResponse = zod.object({
  * @summary List files for a bot
  */
 export const ListBotFilesParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const ListBotFilesResponseItem = zod.object({
@@ -287,7 +281,7 @@ export const ListBotFilesResponse = zod.array(ListBotFilesResponseItem)
  * @summary Delete a file from a bot
  */
 export const DeleteBotFileParams = zod.object({
-  "id": zod.coerce.number(),
+  "id": zod.string(),
   "filename": zod.coerce.string()
 })
 
@@ -298,7 +292,7 @@ export const DeleteBotFileResponse = zod.void()
  * @summary Pull bot files from a GitHub repository
  */
 export const PullFromGithubParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.string()
 })
 
 export const PullFromGithubBody = zod.object({
@@ -311,5 +305,3 @@ export const PullFromGithubResponse = zod.object({
   "message": zod.string(),
   "filesCount": zod.number()
 })
-
-

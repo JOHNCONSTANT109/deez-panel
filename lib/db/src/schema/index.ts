@@ -1,2 +1,2 @@
-export * from "./bots";
-export * from "./botLogs";
+export * from "./bots.js";
+export * from "./botLogs.js";

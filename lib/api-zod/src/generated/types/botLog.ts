@@ -8,8 +8,8 @@
 import type { BotLogLevel } from './botLogLevel';
 
 export interface BotLog {
-  id: number;
-  botId: number;
+  id: string;
+  botId: string;
   level: BotLogLevel;
   message: string;
   createdAt: string;
