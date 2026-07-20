@@ -1,13 +1,12 @@
 {
   "version": 2,
   "buildCommand": "pnpm --filter @workspace/bot-panel run build",
-  "outputDirectory": "artifacts/bot-panel/dist/public",
+  "outputDirectory": "artifacts/bot-panel/dist",
   "installCommand": "pnpm install --frozen-lockfile",
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index" }
   ],
   "env": {
     "BASE_PATH": "/"
-  },
-  "framework": null
+  }
 }
