@@ -1,0 +1,8 @@
+# Large / generated files not needed for deployment
+bot-files/
+deez-panel.zip
+.agents/
+.local/
+*.log
+attached_assets/
+artifacts/mockup-sandbox/

@@ -47,3 +47,12 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Bot runtime
+bot-files/
+
+# Build artifacts
+deez-panel.zip
+
+# Agent memory
+.agents/

@@ -3,20 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: DEEZ PANEL API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: bots
+    description: Bot management
+  - name: logs
+    description: Bot log operations
+  - name: files
+    description: Bot file management
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +29,296 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /bots:
+    get:
+      operationId: listBots
+      tags: [bots]
+      summary: List all bots
+      responses:
+        "200":
+          description: List of bots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bot"
+    post:
+      operationId: createBot
+      tags: [bots]
+      summary: Create a new bot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotInput"
+      responses:
+        "201":
+          description: Bot created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+        "400":
+          description: Bad request
+
+  /bots/summary:
+    get:
+      operationId: getBotsSummary
+      tags: [bots]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotsSummary"
+
+  /bots/{id}:
+    get:
+      operationId: getBot
+      tags: [bots]
+      summary: Get a bot by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateBot
+      tags: [bots]
+      summary: Update a bot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotUpdate"
+      responses:
+        "200":
+          description: Bot updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteBot
+      tags: [bots]
+      summary: Delete a bot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /bots/{id}/start:
+    post:
+      operationId: startBot
+      tags: [bots]
+      summary: Start a bot process
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+        "404":
+          description: Not found
+
+  /bots/{id}/stop:
+    post:
+      operationId: stopBot
+      tags: [bots]
+      summary: Stop a bot process
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+        "404":
+          description: Not found
+
+  /bots/{id}/logs:
+    get:
+      operationId: getBotLogs
+      tags: [logs]
+      summary: Get logs for a bot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotLog"
+        "404":
+          description: Not found
+    post:
+      operationId: addBotLog
+      tags: [logs]
+      summary: Add a log entry for a bot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotLogInput"
+      responses:
+        "201":
+          description: Log added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotLog"
+
+  /bots/{id}/stats:
+    get:
+      operationId: getBotStats
+      tags: [bots]
+      summary: Get runtime stats for a bot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStats"
+        "404":
+          description: Not found
+
+  /bots/{id}/files:
+    get:
+      operationId: listBotFiles
+      tags: [files]
+      summary: List files for a bot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: File list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotFile"
+        "404":
+          description: Not found
+
+  /bots/{id}/files/{filename}:
+    delete:
+      operationId: deleteBotFile
+      tags: [files]
+      summary: Delete a file from a bot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /bots/{id}/github:
+    post:
+      operationId: pullFromGithub
+      tags: [files]
+      summary: Pull bot files from a GitHub repository
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GithubPullInput"
+      responses:
+        "200":
+          description: Pull result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GithubPullResult"
+        "404":
+          description: Not found
+        "400":
+          description: Bad request
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +329,171 @@ components:
       required:
         - status
 
+    Bot:
+      type: object
+      required: [id, name, type, status, prefix, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [discord, telegram, slack, custom]
+        hasToken:
+          type: boolean
+        status:
+          type: string
+          enum: [online, offline, error, starting]
+        prefix:
+          type: string
+        description:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        serverCount:
+          type: ["integer", "null"]
+        userCount:
+          type: ["integer", "null"]
+        uptimeSeconds:
+          type: ["integer", "null"]
+        entryFile:
+          type: ["string", "null"]
+        repoUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    BotInput:
+      type: object
+      required: [name, type, prefix]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [discord, telegram, slack, custom]
+        token:
+          type: string
+        prefix:
+          type: string
+        description:
+          type: string
+        avatarUrl:
+          type: string
+
+    BotUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        token:
+          type: string
+        prefix:
+          type: string
+        description:
+          type: string
+        avatarUrl:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, error, starting]
+        entryFile:
+          type: string
+        repoUrl:
+          type: string
+
+    BotsSummary:
+      type: object
+      required: [total, online, offline, error, totalLogs]
+      properties:
+        total:
+          type: integer
+        online:
+          type: integer
+        offline:
+          type: integer
+        error:
+          type: integer
+        totalLogs:
+          type: integer
+
+    BotLog:
+      type: object
+      required: [id, botId, level, message, createdAt]
+      properties:
+        id:
+          type: integer
+        botId:
+          type: integer
+        level:
+          type: string
+          enum: [info, warn, error, debug]
+        message:
+          type: string
+        createdAt:
+          type: string
+
+    BotLogInput:
+      type: object
+      required: [level, message]
+      properties:
+        level:
+          type: string
+          enum: [info, warn, error, debug]
+        message:
+          type: string
+
+    BotStats:
+      type: object
+      required: [botId, uptimeSeconds, commandsRun, errorsToday, logsTotal]
+      properties:
+        botId:
+          type: integer
+        uptimeSeconds:
+          type: integer
+        commandsRun:
+          type: integer
+        errorsToday:
+          type: integer
+        logsTotal:
+          type: integer
+
+    BotFile:
+      type: object
+      required: [name, sizeBytes, isEntryPoint, updatedAt]
+      properties:
+        name:
+          type: string
+        sizeBytes:
+          type: integer
+        isEntryPoint:
+          type: boolean
+        updatedAt:
+          type: string
+
+    GithubPullInput:
+      type: object
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          type: string
+          description: GitHub repository URL (https://github.com/user/repo)
+        accessToken:
+          type: string
+          description: Optional personal access token for private repos
+
+    GithubPullResult:
+      type: object
+      required: [success, message, filesCount]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        filesCount:
+          type: integer

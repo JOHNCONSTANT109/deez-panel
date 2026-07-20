@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Bot Panel"
+version = "1.0.0"
+id = "artifacts/bot-panel"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23571
+
+[services.development]
+run = "pnpm --filter @workspace/bot-panel run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bot-panel", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/bot-panel/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23571"
+BASE_PATH = "/"
