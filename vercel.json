@@ -1,12 +1,16 @@
 {
   "version": 2,
-  "buildCommand": "pnpm --filter @workspace/bot-panel run build",
-  "outputDirectory": "artifacts/bot-panel/dist",
   "installCommand": "pnpm install --frozen-lockfile",
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" }
+  "builds": [
+    {
+      "src": "api/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["artifacts/bot-panel/dist/**"]
+      }
+    }
   ],
-  "env": {
-    "BASE_PATH": "/"
-  }
+  "routes": [
+    { "src": "/(.*)", "dest": "/api/index.ts" }
+  ]
 }

@@ -1,18 +1,29 @@
 /**
  * Vercel serverless entry point.
  *
- * @vercel/node uses esbuild to bundle this file and all of its transitive
- * imports (including pnpm workspace packages) into a single serverless
- * function.  No separate build step is needed for the API.
+ * @vercel/node bundles this file (+ all workspace imports) into a single
+ * Lambda. The built frontend (artifacts/bot-panel/dist) is included via
+ * vercel.json `includeFiles` and served as static files for non-API routes.
  *
- * Required environment variables (set in Vercel project settings):
- *   DATABASE_URL  – PostgreSQL connection string
- *   SESSION_SECRET – session signing secret
- *
- * Optional:
- *   BOT_FILES_DIR – where uploaded bot files are stored
- *                   (defaults to /tmp/bot-files on Vercel)
+ * Required env vars (set in Vercel project settings):
+ *   MONGODB_URI     – MongoDB connection string
+ *   SESSION_SECRET  – session signing secret
  */
+import path from 'path';
+import express from 'express';
 import app from '../artifacts/api-server/src/app';
+
+// In the Vercel Lambda the working directory is /var/task.
+// includeFiles places files at their original repo-relative paths there.
+const distDir = path.join(process.cwd(), 'artifacts', 'bot-panel', 'dist');
+
+// Serve compiled frontend assets (JS, CSS, images, etc.)
+app.use(express.static(distDir));
+
+// SPA fallback — serve index.html for any unmatched route so client-side
+// routing (wouter) works on direct navigation and refresh.
+app.use((_req, res) => {
+  res.sendFile(path.join(distDir, 'index.html'));
+});
 
 export default app;
